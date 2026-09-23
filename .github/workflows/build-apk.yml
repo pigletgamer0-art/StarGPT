@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,3 +75,24 @@ jobs:
           name: StarGPT-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish prerelease APK
+        if: steps.source.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v0.5.11-alpha"
+          APK="StarGPT-v0.5.11-alpha-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$APK"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$APK" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "StarGPT v0.5.11 Alpha (Android)" \
+              --prerelease \
+              --notes "StarGPT v0.5.11 Alpha: app Android con nuevo nombre e icono, chat y funciones interactivas. Archivo APK de depuración para pruebas; no es una versión de producción. Antes de reemplazar otra versión, guarda tus datos: la firma de depuración puede impedir actualizar directamente. El acceso con Google y la sincronización de cuentas requieren configuración adicional."
+          fi
