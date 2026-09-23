@@ -1,0 +1,68 @@
+name: Build StarGPT APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Android project
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f settings.gradle && -d app/src/main ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Android source found at repository root."
+          elif [[ -f StarGPT_Android_v0.5.11-alpha-source.zip ]]; then
+            mkdir -p "$RUNNER_TEMP/stargpt"
+            unzip -q StarGPT_Android_v0.5.11-alpha-source.zip -d "$RUNNER_TEMP/stargpt"
+            project="$(find "$RUNNER_TEMP/stargpt" -type f -name settings.gradle -print -quit)"
+            if [[ -z "$project" ]]; then
+              echo "::error::The ZIP does not contain an Android project (settings.gradle missing)."
+              exit 1
+            fi
+            cp -a "$(dirname "$project")"/. .
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Android source extracted from ZIP."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Upload the StarGPT source ZIP or Android project files to start the build."
+          fi
+
+      - name: Set up Java 17
+        if: steps.source.outputs.ready == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        if: steps.source.outputs.ready == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle 8.9
+        if: steps.source.outputs.ready == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        if: steps.source.outputs.ready == 'true'
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload Android APK
+        if: steps.source.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: StarGPT-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
