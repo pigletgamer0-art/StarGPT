@@ -22,9 +22,9 @@ jobs:
           if [[ -f settings.gradle && -d app/src/main ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Android source found at repository root."
-          elif [[ -f StarGPT_Android_v0.5.11-github-source.zip ]]; then
+          elif [[ -f StarGPT_Android_v0.5.11-alpha-source.zip ]]; then
             mkdir -p "$RUNNER_TEMP/stargpt"
-            unzip -q StarGPT_Android_v0.5.11-github-source.zip -d "$RUNNER_TEMP/stargpt"
+            unzip -q StarGPT_Android_v0.5.11-alpha-source.zip -d "$RUNNER_TEMP/stargpt"
             project="$(find "$RUNNER_TEMP/stargpt" -type f -name settings.gradle -print -quit)"
             if [[ -z "$project" ]]; then
               echo "::error::The ZIP does not contain an Android project (settings.gradle missing)."
@@ -34,8 +34,8 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Android source extracted from ZIP."
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Upload the StarGPT source ZIP or Android project files to start the build."
+            echo "::error::Upload the StarGPT source ZIP or Android project files to start the build."
+            exit 1
           fi
 
       - name: Set up Java 17
